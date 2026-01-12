@@ -11,6 +11,8 @@
 -->
 
 [![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
+[![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticWorld-Packages/opensemantic.lab/main.svg)](https://coveralls.io/r/OpenSemanticWorld-Packages/opensemantic.lab)
+[![PyPI-Server](https://img.shields.io/pypi/v/opensemantic.lab.svg)](https://pypi.org/project/opensemantic.lab/)
 
 # opensemantic.lab
 
