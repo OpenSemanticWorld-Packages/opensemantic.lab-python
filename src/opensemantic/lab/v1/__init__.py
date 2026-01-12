@@ -1,9 +1,3 @@
-# Necessary to allow a submodule to be defined in a separate repository and use this
-#  package as its namespace package:
-from pkgutil import extend_path
-
-__path__ = extend_path(__path__, __name__)
-
 from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 
 try:
@@ -15,4 +9,4 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-from opensemantic.lab._model import *  # noqa F401
+from opensemantic.lab.v1._model import *  # noqa F401
