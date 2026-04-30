@@ -26,6 +26,7 @@ from opensemantic.base import (
     StrictParticipantsProcessType,
     Tool,
 )
+from opensemantic.characteristics.quantitative import Time
 from opensemantic.core import (
     Category,
     DataStatement,
@@ -2284,8 +2285,8 @@ class OpcUaDataChannel(DataChannel):
             "defaultProperties": [
                 "opcua_data_type",
                 "client_mode",
-                "sampling_interval_in_milliseconds",
-                "refresh_interval_in_milliseconds",
+                "sampling_interval",
+                "refresh_interval",
             ],
         },
     )
@@ -2295,11 +2296,15 @@ class OpcUaDataChannel(DataChannel):
     """
     Enum for the different client modes.
     """
-    sampling_interval_in_milliseconds: int | None = Field(
-        0, title="Sampling interval [ms]"
+    sampling_interval: Time | None = Field(
+        None,
+        json_schema_extra={"title*": {"de": "Abtastintervall"}},
+        title="Sampling interval",
     )
-    refresh_interval_in_milliseconds: int | None = Field(
-        None, title="Refresh interval [ms]"
+    refresh_interval: Time | None = Field(
+        None,
+        json_schema_extra={"title*": {"de": "Aktualisierungsintervall"}},
+        title="Refresh interval",
     )
 
 
