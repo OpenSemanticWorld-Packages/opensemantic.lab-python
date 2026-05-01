@@ -16,3 +16,8 @@ finally:
     del version, PackageNotFoundError
 
 from opensemantic.lab._model import *  # noqa F401
+
+try:
+    from opensemantic.lab._controller import *  # noqa F401
+except ImportError:
+    pass
