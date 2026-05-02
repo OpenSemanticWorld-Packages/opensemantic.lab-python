@@ -274,8 +274,11 @@ class OpcUaServerMixin(DataToolMixin):
         if node_id not in self._channel_dict:
             return
         channel = self._channel_dict[node_id]
-        if channel.subchannels and len(channel.subchannels) > 0:
-            srs = await self.read_channels(channel.subchannels)
+        # TODO: subchannels should be added to the DataChannel model
+        # instead of being defined only on the controller's OpcUaDataChannel
+        subchannels = getattr(channel, "subchannels", None)
+        if subchannels and len(subchannels) > 0:
+            srs = await self.read_channels(subchannels)
             _val = val.isoformat() if isinstance(val, datetime.datetime) else val
             val = {channel.name: _val}
             for sr in srs:

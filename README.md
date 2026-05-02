@@ -1,29 +1,83 @@
-<!-- These are examples of badges you might want to add to your README:
-     please update the URLs accordingly
-
-[![Built Status](https://api.cirrus-ci.com/github/<USER>/opensemantic.lab.svg?branch=main)](https://cirrus-ci.com/github/<USER>/opensemantic.lab)
-[![ReadTheDocs](https://readthedocs.org/projects/opensemantic.lab/badge/?version=latest)](https://opensemantic.lab.readthedocs.io/en/stable/)
-[![Coveralls](https://img.shields.io/coveralls/github/<USER>/opensemantic.lab/main.svg)](https://coveralls.io/r/<USER>/opensemantic.lab)
 [![PyPI-Server](https://img.shields.io/pypi/v/opensemantic.lab.svg)](https://pypi.org/project/opensemantic.lab/)
-[![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/opensemantic.lab.svg)](https://anaconda.org/conda-forge/opensemantic.lab)
-[![Monthly Downloads](https://pepy.tech/badge/opensemantic.lab/month)](https://pepy.tech/project/opensemantic.lab)
-[![Twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter)](https://twitter.com/opensemantic.lab)
--->
-
-[![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
 [![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticWorld-Packages/opensemantic.lab/main.svg)](https://coveralls.io/r/OpenSemanticWorld-Packages/opensemantic.lab)
-[![PyPI-Server](https://img.shields.io/pypi/v/opensemantic.lab.svg)](https://pypi.org/project/opensemantic.lab/)
 
 # opensemantic.lab
 
-> Library with Python models derived from the page package world.opensemantic.lab
+Python models and controllers for the `world.opensemantic.lab` page package.
 
-A longer description of your project goes here...
+Builds on [opensemantic.base](https://github.com/OpenSemanticWorld-Packages/opensemantic.base-python) (`DataToolController`, `TimeSeriesDatabaseController`, archiving, typed read/write).
 
+## Overview
 
-<!-- pyscaffold-notes -->
+- **Auto-generated Pydantic models** (v1 and v2): OpcUaServer, OpcUaDataChannel, LaboratoryProcess, Sample, Material, etc.
+- **OpcUaServer controller** - OPC UA client/server lifecycle with channel subscriptions and data archiving
 
-## Note
+## OpcUaServer controller
 
-This project has been set up using PyScaffold 4.6. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+Extends `DataToolController` with OPC UA protocol logic:
+
+```python
+from opensemantic import compute_scoped_uuid
+from opensemantic.lab.v1 import OpcUaServer, OpcUaDataChannel, OpcUaClientMode
+from opensemantic.characteristics.quantitative.v1 import Temperature, Time, TimeUnit
+from opensemantic.core.v1 import Label
+from uuid import NAMESPACE_URL, uuid5
+
+SERVER_UUID = uuid5(NAMESPACE_URL, "my-server")
+
+server = OpcUaServer(
+    uuid=SERVER_UUID,
+    name="my_server",
+    label=[Label(text="My Server")],
+    url="opc.tcp://localhost:4840",
+    data_channels=[
+        OpcUaDataChannel(
+            uuid=compute_scoped_uuid(SERVER_UUID, "ns=2;s=Temperature"),
+            node_id="ns=2;s=Temperature",
+            name="temperature",
+            label=[Label(text="Temperature")],
+            opcua_data_type="Float",
+            client_mode=OpcUaClientMode.Subscription,
+            sampling_interval=Time(value=100, unit=TimeUnit.milli_second),
+            refresh_interval=Time(value=500, unit=TimeUnit.milli_second),
+            characteristic=Temperature.get_cls_iri(),
+        ),
+    ],
+    auto_archive=True,
+)
+```
+
+### OPC UA-specific methods
+
+- `run_as_server(params)` - start an OPC UA server with value callbacks
+- `run_as_client(params)` - connect, subscribe to channels, auto-archive
+- `read_channel(params)` / `write_channel(params)` - direct channel I/O
+- `browse(params)` - browse the OPC UA address space
+- `stop()` - flush archive buffer and disconnect
+
+### Channel UUIDs
+
+OpcUaDataChannel requires an explicit UUID. Use `compute_scoped_uuid(server_uuid, node_id)` from `opensemantic` to avoid collisions across servers.
+
+### Controller fields (runtime only)
+
+`url`, `archive_database`, `auto_archive`, `reset_opcua_connection_on_error` are controller-only fields. They are stripped from `to_json()` / `to_jsonld()` serialization. Set them as runtime config when constructing the controller.
+
+### Inherited features
+
+All DataTool features from `opensemantic.base` work automatically: auto-archive from `storage_locations`, typed read/write, subobject ID prefixing, channel characteristic warnings. See the [opensemantic.base README](https://github.com/OpenSemanticWorld-Packages/opensemantic.base-python) for details.
+
+## Examples
+
+See `examples/` for complete runnable examples:
+
+- `opc_ua_server.py` - define server, store to oold backend, run
+- `opc_ua_client.py` - load from backend, connect, print archived data
+- `opcua_archiving.py` - full workflow with auto-archiving and typed read/write
+
+## Installation
+
+```bash
+pip install opensemantic.lab             # models only
+pip install opensemantic.lab[controller] # + asyncua, opensemantic.base[controller]
+```
