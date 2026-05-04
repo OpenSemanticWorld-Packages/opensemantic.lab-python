@@ -639,3 +639,118 @@ def test_typed_write_full():
 
     if os.path.exists("./full_test.sqlite"):
         os.unlink("./full_test.sqlite")
+
+
+# -- OPC UA + Archive integration test --
+# Tests: server write -> client subscribe -> auto-archive -> read back.
+
+
+def test_server_client_write_read_archive():
+    """Write a value on server, verify client receives it and archives it."""
+    from opensemantic.base import LocalTimeSeriesDatabaseController
+    from opensemantic.base._controller_mixin import TSDCMixin
+
+    ch = OpcUaDataChannel(
+        uuid=str(compute_scoped_uuid(_TEST_SERVER_UUID, "ns=2;s=IntTemp")),
+        node_id="ns=2;s=IntTemp",
+        name="IntTemp",
+        opcua_data_type="Float",
+        client_mode=OpcUaClientMode.Subscription,
+        sampling_interval=Time(value=100, unit=TimeUnit.milli_second),
+        refresh_interval=Time(value=500, unit=TimeUnit.milli_second),
+    )
+
+    archive_db = LocalTimeSeriesDatabaseController(
+        name="int_test_archive",
+        label=[Label(text="Integration Archive")],
+        db_path="./int_test.sqlite",
+    )
+
+    server = OpcUaServer(
+        uuid=_TEST_SERVER_UUID,
+        name="int_server",
+        label=[Label(text="Server")],
+        url="opc.tcp://localhost:48510",
+        data_channels=[ch],
+    )
+
+    client = OpcUaServer(
+        uuid=_TEST_SERVER_UUID,
+        name="int_client",
+        label=[Label(text="Client")],
+        url="opc.tcp://localhost:48510",
+        data_channels=[ch],
+        archive_database=archive_db,
+        auto_archive=True,
+    )
+
+    received = {}
+
+    async def get_value(params):
+        return 23.0
+
+    async def on_data_change(params):
+        received["value"] = params.value
+        received["channel"] = params.channel.node_id
+        received["timestamp"] = params.timestamp
+
+    async def run_test():
+        from opensemantic.lab._controller import ControllerState
+
+        # Wait for client to connect
+        for _ in range(20):
+            if client._state == ControllerState.connected:
+                break
+            await asyncio.sleep(0.5)
+
+        # Write a value from server side
+        await server.write_channel(
+            OpcUaServer.WriteChannelParams(channel=ch, value=23.0)
+        )
+
+        # Read it from client side
+        result = await client.read_channel(OpcUaServer.ReadChannelParams(channel=ch))
+        assert result.value == 23.0
+
+    async def timeout():
+        await asyncio.sleep(8)
+        await client.stop()
+        await server.stop()
+
+    async def main():
+        await asyncio.gather(
+            server.run_as_server(
+                OpcUaServer.RunAsServerParams(
+                    get_channel_value_callback=get_value,
+                )
+            ),
+            client.run_as_client(
+                OpcUaServer.RunAsClientParams(
+                    channel_datachange_notification_callback=on_data_change,
+                    auto_archive=True,
+                )
+            ),
+            run_test(),
+            timeout(),
+        )
+
+    asyncio.run(main())
+
+    # Verify callback received data
+    assert "value" in received, "No data change received"
+    assert received["channel"] == "ns=2;s=IntTemp"
+
+    # Verify archive has data
+    async def check_archive():
+        rows = await archive_db.read_tool_channel_raw(
+            TSDCMixin.ReadToolChannelRawParams(tool_osw_id=client.get_osw_id())
+        )
+        assert len(rows) > 0, "No archived data found"
+        assert rows[0]["data"]["value"] == 23.0
+
+    asyncio.run(check_archive())
+
+    import os
+
+    if os.path.exists("./int_test.sqlite"):
+        os.unlink("./int_test.sqlite")

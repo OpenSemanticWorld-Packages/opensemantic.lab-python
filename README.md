@@ -81,3 +81,13 @@ See `examples/` for complete runnable examples:
 pip install opensemantic.lab             # models only
 pip install opensemantic.lab[controller] # + asyncua, opensemantic.base[controller]
 ```
+
+## Testing
+
+```bash
+pytest tests/test_controller.py
+```
+
+Tests include OPC UA server/client integration (uses asyncua's built-in test server, no external services needed).
+
+For PostgREST-based archiving tests, see the [opensemantic.base testing docs](https://github.com/OpenSemanticWorld-Packages/opensemantic.base-python#testing) - requires a running [pgstack](https://github.com/opensemanticworld/pgstack) instance with TimescaleDB.
