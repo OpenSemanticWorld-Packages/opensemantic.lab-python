@@ -71,7 +71,16 @@ server = OpcUaServer(
     auto_archive=True,
 )
 
-store.store(StoreParam(nodes={server.get_iri(): server}))
+# Store server and its storage location so the client can resolve both
+db_entity = server.storage_locations[0]
+store.store(
+    StoreParam(
+        nodes={
+            server.get_iri(): server,
+            db_entity.get_iri(): db_entity,
+        }
+    )
+)
 print(f"Stored: {server.get_iri()} -> {STORE_FILE}")
 print(f"  URL: {OPC_URL}")
 print(f"  Channels: {[ch.name for ch in server.data_channels]}")
