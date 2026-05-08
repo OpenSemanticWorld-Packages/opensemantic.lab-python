@@ -53,6 +53,7 @@ channels = [
         sampling_interval=Time(value=100, unit=TimeUnit.milli_second),
         refresh_interval=Time(value=500, unit=TimeUnit.milli_second),
         characteristic=Temperature.get_cls_iri(),
+        unit=TemperatureUnit.Celsius,
     ),
     OpcUaDataChannel(
         uuid=compute_scoped_uuid(SERVER_UUID, "ns=2;s=Example.Pressure"),
@@ -133,7 +134,7 @@ async def main():
         client.LoadChannelDataParams(channel="temperature", limit=3)
     )
     for t in results[:3]:
-        print(f"  {type(t).__name__}: {t.value}")
+        print(f"  {type(t).__name__}: {t.value} {t.unit}")
 
     print("\n--- Load pressure (raw, no characteristic) ---")
     results = await client.load_channel_data(
