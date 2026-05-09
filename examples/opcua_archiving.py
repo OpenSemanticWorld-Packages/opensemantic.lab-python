@@ -92,9 +92,23 @@ print(f"Client archive: {type(client.archive_database).__name__}")
 received = []
 
 
-async def generate_value(params):
+async def generate_value(
+    params: OpcUaServer.GetChannelValueCallbackParams,
+):
+    """Generate simulated sensor values.
+
+    Can return:
+    - A raw scalar (float) for simple channels
+    - A Characteristic instance for typed channels (auto-converted
+      to raw value for OPC UA, stored with unit context in archive)
+    """
     if "temperature" in params.channel.name:
-        return random.uniform(20.0, 25.0)
+        # Return a Characteristic instance - the server extracts .value
+        # for OPC UA, and _handle_data_change stores it with unit context
+        return Temperature(
+            value=random.uniform(20.0, 25.0),
+            unit=TemperatureUnit.Celsius,
+        )
     return random.uniform(1000.0, 1020.0)
 
 

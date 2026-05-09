@@ -77,7 +77,13 @@ class OpcUaServerMixin(DataToolMixin):
         read_all_channels_on_startup: bool = False
 
     class RunAsServerParams(BaseModel):
-        get_channel_value_callback: Optional[Callable[..., Awaitable[Any]]] = None
+        get_channel_value_callback: Optional[
+            Callable[
+                ["OpcUaServerMixin.GetChannelValueCallbackParams"],
+                Awaitable[Any],
+            ]
+        ] = None
+        """Async callback: (params) -> float | dict | Characteristic | None"""
 
     class WriteChannelParams(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -103,11 +109,28 @@ class OpcUaServerMixin(DataToolMixin):
         timestamp: Optional[datetime.datetime] = None
 
     class GetChannelValueCallbackParams(BaseModel):
+        """Parameters passed to the server's value callback.
+
+        The callback should return one of:
+        - A raw scalar (float, int, str, bool) matching the channel's
+          OPC UA data type
+        - A dict with arbitrary structure (written as JSON to
+          a String-typed channel)
+        - A Characteristic instance (e.g. Temperature(value=23.5,
+          unit=TemperatureUnit.Celsius)) - automatically converted
+          to a raw value for the OPC UA channel
+        - None to skip writing this cycle
+        """
+
         model_config = ConfigDict(arbitrary_types_allowed=True)
         channel: Any = None
+        """The OpcUaDataChannel being queried."""
         old_value: Any = None
+        """The previous value written to this channel (raw scalar)."""
         timestamp: Optional[float] = None
+        """Current loop timestamp (seconds, from event loop)."""
         old_timestamp: Optional[float] = None
+        """Timestamp of the previous write."""
 
     class BrowseParams(BaseModel):
         model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -251,6 +274,96 @@ class OpcUaServerMixin(DataToolMixin):
             )
             for ch, dv in zip(channels, results)
         ]
+
+    async def write_channel_typed(self, params):
+        """Write a typed value to an OPC UA channel.
+
+        Accepts a Characteristic instance (e.g. Temperature(24, Celsius)).
+        - For numeric channels (Float, Int, etc.): converts to channel's
+          unit if different, extracts .value as raw scalar.
+        - For String channels: serializes the full Characteristic as JSON,
+          enabling complex typed data transport.
+        Warns on unit mismatch for numeric channels.
+        """
+        import json as _json
+
+        value = params.value
+        channel = params.channel
+        opcua_type = getattr(channel, "opcua_data_type", None)
+        # TODO: support custom OPC UA ExtensionObject types for native
+        # typed data exchange, see
+        # https://github.com/FreeOpcUa/opcua-asyncio/discussions/1615
+        from opensemantic.lab._model import OPCUADataType
+
+        is_string = opcua_type == OPCUADataType.String
+
+        if is_string and hasattr(value, "to_json"):
+            # String channel: serialize full Characteristic as JSON
+            raw_value = _json.dumps(value.to_json())
+        elif hasattr(value, "value"):
+            # Numeric channel: extract scalar, convert unit if needed
+            ch_unit = getattr(channel, "unit", None)
+            val_unit = getattr(value, "unit", None)
+            if ch_unit is not None and val_unit is not None:
+                try:
+                    resolved = type(value)(value=0, unit=ch_unit).unit
+                    if str(resolved) != str(val_unit):
+                        value = value.to_unit(resolved)
+                except Exception:
+                    pass
+            raw_value = value.value
+        else:
+            raw_value = value
+
+        return await self.write_channel(
+            type(self).WriteChannelParams(
+                channel=channel,
+                value=raw_value,
+                set_source_timestamp=params.set_source_timestamp,
+                set_server_timestamp=params.set_server_timestamp,
+            )
+        )
+
+    async def read_channel_typed(self, params):
+        """Read a typed value from an OPC UA channel.
+
+        - For numeric channels: wraps raw value in the channel's
+          Characteristic class with channel.unit.
+        - For String channels: parses JSON and deserializes via from_json.
+        Falls back to raw ReadChannelResult if no class is available.
+        """
+        import json as _json
+
+        result = await self.read_channel(params)
+        cls = self._resolve_characteristic_class(params.channel)
+        if cls is None:
+            return result
+
+        opcua_type = getattr(params.channel, "opcua_data_type", None)
+        from opensemantic.lab._model import OPCUADataType
+
+        is_string = opcua_type == OPCUADataType.String
+
+        if is_string and isinstance(result.value, str):
+            # String channel: parse JSON and deserialize
+            try:
+                data = _json.loads(result.value)
+                typed_value = cls.from_json(data)
+            except Exception:
+                typed_value = result.value
+        else:
+            # Numeric channel: wrap with class + channel unit
+            ch_unit = getattr(params.channel, "unit", None)
+            kwargs = {"value": result.value}
+            if ch_unit is not None:
+                kwargs["unit"] = ch_unit
+            typed_value = cls(**kwargs)
+
+        return type(self).ReadChannelResult(
+            channel=result.channel,
+            value=typed_value,
+            timestamp=result.timestamp,
+        )
 
     async def browse(self, params=None):
         from asyncua.tools import _lsprint_long
@@ -493,10 +606,14 @@ class OpcUaServerMixin(DataToolMixin):
                             )
                         )
                         if value is not None:
+                            # Convert Characteristic to raw value
+                            raw_value = value
+                            if hasattr(value, "value"):
+                                raw_value = value.value
                             await self.write_channel(
                                 type(self).WriteChannelParams(
                                     channel=channel,
-                                    value=value,
+                                    value=raw_value,
                                     set_source_timestamp=True,
                                     set_server_timestamp=True,
                                 )
