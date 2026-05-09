@@ -37,15 +37,16 @@ SERVER_UUID = uuid5(NAMESPACE_URL, "minimal-example-server")
 server_iri = f"Item:OSW{str(SERVER_UUID).replace('-', '')}"
 
 try:
-    loaded = OpcUaServer[server_iri]
+    # OpcUaServer[iri] returns a controller instance directly
+    # (auto-resolved from _controller_types registry)
+    client = OpcUaServer[server_iri]
 except (ValueError, KeyError):
     print(f"Not found: {server_iri}. Run opc_ua_server.py first.")
     sys.exit(1)
 
-# -- Create client from loaded entity --
-# url is runtime config (not in data model yet)
-# auto_archive=True + storage_locations -> auto-inits archive DB
-client = OpcUaServer(loaded, url=OPC_URL, auto_archive=True)
+# Set runtime config (not part of the data model yet)
+client.url = OPC_URL
+client.auto_archive = True
 
 print(f"Loaded: {client.name}")
 print(f"  Channels: {[ch.name for ch in client.data_channels or []]}")
