@@ -33,7 +33,7 @@ from opensemantic.core.v1 import Label
 from opensemantic.lab.v1 import (
     OpcUaClientMode,
     OpcUaDataChannel,
-    OPCUADataType,
+    OpcUaDataType,
     OpcUaServer,
 )
 
@@ -60,7 +60,7 @@ server = OpcUaServer(
             node_id="ns=2;s=Temperature",
             name="temperature",
             label=[Label(text="Temperature Sensor")],
-            opcua_data_type=OPCUADataType.Float,
+            opcua_data_type=OpcUaDataType.Float,
             client_mode=OpcUaClientMode.Subscription,
             sampling_interval=Time(value=100, unit=TimeUnit.milli_second),
             refresh_interval=Time(value=500, unit=TimeUnit.milli_second),

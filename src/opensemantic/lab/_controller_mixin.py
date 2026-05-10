@@ -293,9 +293,9 @@ class OpcUaServerMixin(DataToolMixin):
         # TODO: support custom OPC UA ExtensionObject types for native
         # typed data exchange, see
         # https://github.com/FreeOpcUa/opcua-asyncio/discussions/1615
-        from opensemantic.lab._model import OPCUADataType
+        from opensemantic.lab._model import OpcUaDataType
 
-        is_string = opcua_type == OPCUADataType.String
+        is_string = opcua_type == OpcUaDataType.String
 
         if is_string and hasattr(value, "to_json"):
             # String channel: serialize full Characteristic as JSON
@@ -340,9 +340,9 @@ class OpcUaServerMixin(DataToolMixin):
             return result
 
         opcua_type = getattr(params.channel, "opcua_data_type", None)
-        from opensemantic.lab._model import OPCUADataType
+        from opensemantic.lab._model import OpcUaDataType
 
-        is_string = opcua_type == OPCUADataType.String
+        is_string = opcua_type == OpcUaDataType.String
 
         if is_string and isinstance(result.value, str):
             # String channel: parse JSON and deserialize
