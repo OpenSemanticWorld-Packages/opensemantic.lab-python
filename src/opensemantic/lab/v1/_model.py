@@ -2032,7 +2032,7 @@ class ControlledEnvironment(Device):
 #   filename:  OSW89fda9fed80b41b1ad4c0c011e645600.json
 
 
-class OPCUADataType(str, Enum):
+class OpcUaDataType(str, Enum):
     Null = "Null"
     Boolean = "Boolean"
     SByte = "SByte"
@@ -2086,7 +2086,11 @@ class OpcUaDataChannel(DataChannel):
         }
 
     node_id: str = Field(..., title="Node ID")
-    opcua_data_type: OPCUADataType | None = Field(None, title="OPC-UA data type")
+    opcua_data_type: OpcUaDataType | None = Field(
+        None,
+        title="OpcUaDataType",
+        title_={"en": "OPC-UA data type", "de": "OPC-UA Datentyp"},
+    )
     client_mode: OpcUaClientMode | None = Field(None, title="OpcUaClientMode")
     """
     Enum for the different client modes.
@@ -2097,6 +2101,17 @@ class OpcUaDataChannel(DataChannel):
     refresh_interval: Time | None = Field(
         None, title="Refresh interval", title_={"de": "Aktualisierungsintervall"}
     )
+    subchannels: list[str] | None = Field(
+        None,
+        description_={
+            "de": "Unterkanäle werden automatisch mit dem Hauptkanal gelesen, z.B. 'msg' mit Unterkanal 'msg_ts' => {'msg': '...', 'msg_ts': '...'}. Benutzerdefinierte OPC-UA-Typen sind jedoch der Kanalaggregation vorzuziehen."
+        },
+        title="Subchannels",
+        title_={"de": "Unterkanäle"},
+    )
+    """
+    Subchannels are read automatically with the main channel, e.g. 'msg' with subchannel 'msg_ts' => {'msg': '...', 'msg_ts': '...'}. However, custom OPC-UA types are preferred over channel aggregation.
+    """
 
 
 class OpcUaServer(DataTool):
@@ -2107,7 +2122,15 @@ class OpcUaServer(DataTool):
     class Config:
         schema_extra = {
             "@context": [
-                "/wiki/Category:OSWda27e2fff10848ebb728ffb69c49a16d?action=raw&slot=jsonschema"
+                "/wiki/Category:OSWda27e2fff10848ebb728ffb69c49a16d?action=raw&slot=jsonschema",
+                {
+                    "data_channels": {
+                        "@context": {
+                            "node_id": {"@id": "Property:HasId", "@type": "xsd:string"},
+                            "subchannels": {"@id": "Property:HasPart", "@type": "@id"},
+                        }
+                    }
+                },
             ],
             "uuid": "89fda9fe-d80b-41b1-ad4c-0c011e645600",
             "title": "OpcUaServer",
@@ -2117,10 +2140,21 @@ class OpcUaServer(DataTool):
                 "en": "Implements the OPC Unified Architecture (OPC UA) Specification",
                 "de": "Implements the OPC Unified Architecture (OPC UA) Specification",
             },
-            "defaultProperties": ["data_channels"],
+            "defaultProperties": ["url", "data_channels"],
         }
 
     type: list[str] | None = ["Category:OSW89fda9fed80b41b1ad4c0c011e645600"]
+    url: str | None = Field(
+        None,
+        description_={
+            "de": "Die Endpunkt-URL des OPC-UA Servers (z.B. opc.tcp://hostname:4840)"
+        },
+        title="URL",
+        title_={"de": "URL"},
+    )
+    """
+    The endpoint URL of the OPC-UA server (e.g. opc.tcp://hostname:4840)
+    """
     data_channels: list[OpcUaDataChannel] | None = None
 
 
