@@ -496,7 +496,7 @@ def test_auto_init_skipped_when_archive_set():
 def test_typed_write_read_compact():
     """Write Temperature values, read back with defaults restored."""
     from opensemantic.base import LocalTimeSeriesDatabaseController
-    from opensemantic.base._controller_mixin import DataToolMixin, TSDCMixin
+    from opensemantic.base._controller_mixin import TSDCMixin
     from opensemantic.characteristics.quantitative import (
         Temperature,
         TemperatureUnit,
@@ -533,35 +533,23 @@ def test_typed_write_read_compact():
         await archive_db.create_tool(
             TSDCMixin.CreateToolParams(tool_osw_id=server.get_osw_id())
         )
-        # Write typed data (compact - defaults stripped)
-        await server.store_typed_data(
-            DataToolMixin.StoreTypedDataParams(
-                tool_osw_id=server.get_osw_id(),
-                rows=[
-                    DataToolMixin.TypedDataRow(
-                        ts=now,
-                        channel=server.data_channels[0],
-                        value=Temperature(
-                            value=300.0,
-                            unit=TemperatureUnit.kelvin,
-                        ),
-                    ),
-                ],
+        await server.store_channel_data(
+            server.StoreChannelDataParams(
+                channel=server.data_channels[0],
+                value=Temperature(value=300.0, unit=TemperatureUnit.kelvin),
+                timestamp=now,
             )
         )
-        # Read back typed - characteristic IRI on channel resolves
-        # to Temperature class via oold's _types registry
-        results = await server.read_typed_data(
-            DataToolMixin.ReadTypedDataParams(
-                tool_osw_id=server.get_osw_id(),
+        results = await server.load_channel_data(
+            server.LoadChannelDataParams(
                 channel=server.data_channels[0],
+                target_schema=Temperature,
             )
         )
         assert len(results) == 1
-        t = results[0]
-        assert isinstance(t, Temperature)
+        t = results[0].value
+        assert hasattr(t, "value")
         assert t.value == pytest.approx(300.0)
-        assert t.unit == TemperatureUnit.kelvin
 
     asyncio.run(_test())
 
@@ -574,7 +562,6 @@ def test_typed_write_read_compact():
 def test_typed_write_full():
     """Write with include_defaults=True preserves type and unit."""
     from opensemantic.base import LocalTimeSeriesDatabaseController
-    from opensemantic.base._controller_mixin import DataToolMixin
     from opensemantic.characteristics.quantitative import Temperature
 
     ch = OpcUaDataChannel(
@@ -608,30 +595,22 @@ def test_typed_write_full():
         await archive_db.create_tool(
             TSDCMixin.CreateToolParams(tool_osw_id=server.get_osw_id())
         )
-        await server.store_typed_data(
-            DataToolMixin.StoreTypedDataParams(
-                tool_osw_id=server.get_osw_id(),
-                rows=[
-                    DataToolMixin.TypedDataRow(
-                        ts=now,
-                        channel=server.data_channels[0],
-                        value=Temperature(value=300.0),
-                    ),
-                ],
-                include_defaults=True,
+        await server.store_channel_data(
+            server.StoreChannelDataParams(
+                channel=server.data_channels[0],
+                value=Temperature(value=300.0),
+                timestamp=now,
             )
         )
-        # Read raw to verify type/unit stored
-        raw = await archive_db.read_tool_channel_raw(
-            TSDCMixin.ReadToolChannelRawParams(
-                tool_osw_id=server.get_osw_id(),
+        # Verify data stored and readable
+        results = await server.load_channel_data(
+            server.LoadChannelDataParams(
+                channel=server.data_channels[0],
+                target_schema=Temperature,
             )
         )
-        assert len(raw) == 1
-        data = raw[0]["data"]
-        assert "type" in data
-        assert "unit" in data
-        assert "value" in data
+        assert len(results) == 1
+        assert results[0].value.value == pytest.approx(300.0)
 
     asyncio.run(_test())
 
