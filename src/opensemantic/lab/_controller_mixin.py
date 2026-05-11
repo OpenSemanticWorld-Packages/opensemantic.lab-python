@@ -408,18 +408,28 @@ class OpcUaServerMixin(DataToolMixin):
         if data.monitored_item.Value.SourceTimestamp is not None:
             ts = data.monitored_item.Value.SourceTimestamp
 
+        # Wrap raw OPC UA scalars in the channel's characteristic class
+        typed_val = self._wrap_raw_value(val, channel)
+
         if not hasattr(self, "_last_notified_values"):
             self._last_notified_values = {}
         if channel.uuid in self._last_notified_values:
-            if self._last_notified_values[channel.uuid].value == val:
+            last_val = self._last_notified_values[channel.uuid].value
+            # Compare raw values to avoid type mismatch in __eq__
+            last_raw = last_val.value if hasattr(last_val, "value") else last_val
+            new_raw = typed_val.value if hasattr(typed_val, "value") else typed_val
+            if last_raw == new_raw:
                 _logger.warning("Duplicate notification for %s, ignoring", channel.name)
                 return
+
         self._last_notified_values[channel.uuid] = type(
             self
-        ).ChannelDataChangeNotificationParams(channel=channel, value=val, timestamp=ts)
+        ).ChannelDataChangeNotificationParams(
+            channel=channel, value=typed_val, timestamp=ts
+        )
         await self._handle_data_change(
             type(self).ChannelDataChangeNotificationParams(
-                channel=channel, value=val, timestamp=ts
+                channel=channel, value=typed_val, timestamp=ts
             )
         )
 
