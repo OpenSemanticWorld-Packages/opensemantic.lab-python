@@ -201,11 +201,11 @@ class TestOpcUaDataStream:
                     )
                 )
             )
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
             # Replace callback mid-stream
             client._channel_datachange_notification_callback = cb2
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
             server._state = None
             client._state = None

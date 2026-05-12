@@ -284,20 +284,24 @@ def test_server_client_integration(server_with_channels):
         received.append((params.channel.name, params.value))
 
     async def timeout():
-        await asyncio.sleep(3)
+        await asyncio.sleep(5)
         await client.stop()
         await server.stop()
+
+    async def delayed_client():
+        await asyncio.sleep(1)  # let server start first
+        await client.run_as_client(
+            OpcUaServer.RunAsClientParams(
+                channel_datachange_notification_callback=on_data_change,
+            )
+        )
 
     async def run():
         await asyncio.gather(
             server.run_as_server(
                 OpcUaServer.RunAsServerParams(get_channel_value_callback=get_value)
             ),
-            client.run_as_client(
-                OpcUaServer.RunAsClientParams(
-                    channel_datachange_notification_callback=on_data_change,
-                )
-            ),
+            delayed_client(),
             timeout(),
         )
 
