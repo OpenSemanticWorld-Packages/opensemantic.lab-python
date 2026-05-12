@@ -67,6 +67,42 @@ OpcUaDataChannel requires an explicit UUID. Use `compute_scoped_uuid(server_uuid
 
 All DataTool features from `opensemantic.base` work automatically: auto-archive from `storage_locations`, typed read/write, subobject ID prefixing, channel characteristic warnings. See the [opensemantic.base README](https://github.com/OpenSemanticWorld-Packages/opensemantic.base-python) for details.
 
+## LiveDataToolView (Live Dashboard UI)
+
+Extends the base `DataToolView` with real-time OPC UA streaming via Bokeh.
+
+Features:
+- Archive tab with all base DataToolView features (stacked plots, unit switching, log console)
+- Live tab with Bokeh streaming plots updated via OPC UA subscriptions
+- Per-channel unit conversion for live data
+- Configurable history window, buffer size, and update interval via JsonEditor
+
+![Live Demo](docs/live_demo.gif)
+
+*Interactive demo: archive view and real-time OPC UA streaming*
+
+![Archive Tab](docs/screenshot_archive_tab.png)
+
+*Archive view with accumulated OPC UA data*
+
+![Live Streaming](docs/screenshot_live_streaming.png)
+
+*Real-time OPC UA streaming with stacked Bokeh plots*
+
+```python
+from opensemantic.lab.view import LiveDataToolView
+from opensemantic.base.view._config import LiveDashboardConfig, PlotConfig
+
+view = LiveDataToolView(
+    controllers=[ctrl],
+    config=LiveDashboardConfig(lang="en", plot=PlotConfig(auto_fetch=True)),
+    title="Live Dashboard",
+)
+view.servable()
+```
+
+See [examples/live_dashboard.py](examples/live_dashboard.py) for a full working example with an embedded OPC UA server.
+
 ## Examples
 
 See `examples/` for complete runnable examples:
@@ -74,12 +110,14 @@ See `examples/` for complete runnable examples:
 - `opc_ua_server.py` - define server, store to oold backend, run
 - `opc_ua_client.py` - load from backend, connect, print archived data
 - `opcua_archiving.py` - full workflow with auto-archiving and typed read/write
+- `live_dashboard.py` - live dashboard with embedded OPC UA server
 
 ## Installation
 
 ```bash
 pip install opensemantic.lab             # models only
 pip install opensemantic.lab[controller] # + asyncua, opensemantic.base[controller]
+pip install opensemantic.lab[view]       # + opensemantic.base[view]
 ```
 
 ## Testing
