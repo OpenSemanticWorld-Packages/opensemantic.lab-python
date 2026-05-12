@@ -16,8 +16,8 @@ from uuid import NAMESPACE_URL, uuid5
 import panel as pn
 
 from opensemantic import compute_scoped_uuid
-from opensemantic.base.ui._config import LiveConfig, LiveDashboardConfig, PlotConfig
 from opensemantic.base.v1 import Database
+from opensemantic.base.view._config import LiveConfig, LiveDashboardConfig, PlotConfig
 from opensemantic.characteristics.quantitative.v1 import (
     ForcePerAreaUnit,
     Pressure,
@@ -27,13 +27,13 @@ from opensemantic.characteristics.quantitative.v1 import (
     TimeUnit,
 )
 from opensemantic.core.v1 import Label
-from opensemantic.lab.ui import LiveDataToolView
 from opensemantic.lab.v1 import (
     OpcUaClientMode,
     OpcUaDataChannel,
     OpcUaDataType,
     OpcUaServer,
 )
+from opensemantic.lab.view import LiveDataToolView
 
 pn.extension()
 

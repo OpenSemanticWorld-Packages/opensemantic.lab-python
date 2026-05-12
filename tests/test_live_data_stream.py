@@ -9,8 +9,8 @@ from uuid import NAMESPACE_URL, uuid5
 import pytest
 
 from opensemantic import compute_scoped_uuid
-from opensemantic.base.ui._data_cache import ChannelDataCache
 from opensemantic.base.v1 import Database
+from opensemantic.base.view._data_cache import ChannelDataCache
 from opensemantic.characteristics.quantitative.v1 import (
     Pressure,
     Temperature,

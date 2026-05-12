@@ -4,7 +4,7 @@ Adds a live tab that subscribes to selected channels via OPC UA and
 plots incoming data in realtime with a rolling time window.
 
 Usage:
-    from opensemantic.lab.ui import LiveDataToolView
+    from opensemantic.lab.view import LiveDataToolView
 
     view = LiveDataToolView(controllers=[opcua_ctrl])
     view.servable()
@@ -20,15 +20,15 @@ import panel as pn
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, Range1d
 from bokeh.plotting import figure as bk_figure
 
-from opensemantic.base.ui._channel_utils import (
+from opensemantic.base.view._channel_utils import (
     _t,
     get_display_label,
     get_unit_enum,
     group_channels_by_characteristic,
     resolve_value_type,
 )
-from opensemantic.base.ui._config import LiveDashboardConfig
-from opensemantic.base.ui._datatool_dashboard import DataToolView
+from opensemantic.base.view._config import LiveDashboardConfig
+from opensemantic.base.view._datatool_dashboard import DataToolView
 
 _logger = logging.getLogger(__name__)
 
@@ -217,7 +217,7 @@ class LiveDataToolView(DataToolView):
 
     def _build_live_figures(self):
         """Build Bokeh figures with ColumnDataSources for each group."""
-        from opensemantic.base.ui._datatool_dashboard import COLORS
+        from opensemantic.base.view._datatool_dashboard import COLORS
 
         groups = group_channels_by_characteristic(
             self._selected, self._live_config.plot.grouping
