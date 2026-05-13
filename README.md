@@ -103,6 +103,8 @@ view.servable()
 
 See [examples/live_dashboard.py](examples/live_dashboard.py) for a full working example with an embedded OPC UA server.
 
+To regenerate the screenshots after UI changes, see [docs/generate_screenshots.py](docs/generate_screenshots.py).
+
 ## Examples
 
 See `examples/` for complete runnable examples:
