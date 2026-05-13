@@ -737,3 +737,108 @@ def test_server_client_write_read_archive():
 
     if os.path.exists("./int_test.sqlite"):
         os.unlink("./int_test.sqlite")
+
+
+def test_client_auto_reconnect():
+    """Client reconnects after server restart (issue #2)."""
+    from opensemantic.lab._controller import ControllerState
+
+    port = 48515
+    url = f"opc.tcp://localhost:{port}"
+
+    ch = OpcUaDataChannel(
+        uuid=str(compute_scoped_uuid(_TEST_SERVER_UUID, "ns=2;s=Reconnect")),
+        node_id="ns=2;s=Reconnect",
+        name="Reconnect",
+        opcua_data_type="Float",
+        refresh_interval=Time(value=200, unit=TimeUnit.milli_second),
+        sampling_interval=Time(value=100, unit=TimeUnit.milli_second),
+        client_mode=OpcUaClientMode.Subscription,
+    )
+
+    received_before = []
+    received_after = []
+    phase = {"current": "before"}
+
+    async def get_value(params):
+        return 42.0
+
+    async def on_data_change(params):
+        if phase["current"] == "before":
+            received_before.append(params.value)
+        else:
+            received_after.append(params.value)
+
+    async def run():
+        server = OpcUaServer(
+            uuid=_TEST_SERVER_UUID,
+            name="reconnect_server",
+            label=[Label(text="Server")],
+            url=url,
+            data_channels=[ch],
+        )
+        client = OpcUaServer(
+            uuid=_TEST_SERVER_UUID,
+            name="reconnect_client",
+            label=[Label(text="Client")],
+            url=url,
+            data_channels=[ch],
+        )
+
+        # Start server
+        server_task = asyncio.ensure_future(
+            server.run_as_server(
+                OpcUaServer.RunAsServerParams(get_channel_value_callback=get_value)
+            )
+        )
+        await asyncio.sleep(1)
+
+        # Start client
+        client_task = asyncio.ensure_future(
+            client.run_as_client(
+                OpcUaServer.RunAsClientParams(
+                    channel_datachange_notification_callback=on_data_change,
+                )
+            )
+        )
+
+        # Wait for data before restart
+        await asyncio.sleep(3)
+        assert len(received_before) > 0, "No data before server restart"
+
+        # Stop server (simulates crash / network drop)
+        await server.stop()
+        server_task.cancel()
+        try:
+            await server_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        await asyncio.sleep(1)
+
+        # Restart same server
+        phase["current"] = "after"
+        server_task = asyncio.ensure_future(
+            server.run_as_server(
+                OpcUaServer.RunAsServerParams(get_channel_value_callback=get_value)
+            )
+        )
+
+        # Wait for client to reconnect and receive data
+        # (2s reconnect delay + connection + subscription setup)
+        await asyncio.sleep(8)
+
+        # Cleanup
+        client._state = ControllerState.stopped
+        server._state = ControllerState.stopped
+        client_task.cancel()
+        server_task.cancel()
+        for t in [client_task, server_task]:
+            try:
+                await t
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    asyncio.run(run())
+
+    assert len(received_before) > 0, "No data before server restart"
+    assert len(received_after) > 0, "Client did not reconnect after server restart"

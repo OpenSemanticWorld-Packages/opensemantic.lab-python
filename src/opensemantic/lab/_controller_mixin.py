@@ -466,6 +466,9 @@ class OpcUaServerMixin(DataToolMixin):
         while self._state == ControllerState.idle:
             _logger.warning("Connecting")
             self._state = ControllerState.connecting
+            # Clear stale dedup state from previous connection
+            self._last_notified_values = {}
+            self._last_values = {}
             self._client = Client(url=self.url)
             try:
                 async with self._client:
@@ -550,7 +553,7 @@ class OpcUaServerMixin(DataToolMixin):
                     if self._state == ControllerState.reset:
                         _logger.warning("Resetting connection")
                         self._state = ControllerState.idle
-            except (ConnectionError, ua.UaError) as e:
+            except (ConnectionError, OSError, ua.UaError, asyncio.TimeoutError) as e:
                 _logger.error("Connection error: %s", e)
                 _logger.warning("Reconnecting in 2 seconds")
                 self._state = ControllerState.idle
